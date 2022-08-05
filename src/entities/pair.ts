@@ -22,7 +22,7 @@ import { sqrt, parseBigintIsh } from '../utils'
 import { InsufficientReservesError, InsufficientInputAmountError } from '../errors'
 import { Token } from './token'
 
-let PAIR_ADDRESS_CACHE: { [key: string]: string } = {}
+export const PAIR_ADDRESS_CACHE = new Map<string, string>()
 
 const composeKey = (token0: Token, token1: Token, swapName: SWAP_NAME) => `${token0.chainId}-${token0.address}-${token1.address}-${swapName}`
 
@@ -37,18 +37,16 @@ export class Pair {
 
     const key = composeKey(token0, token1, swapName)
 
-    if (PAIR_ADDRESS_CACHE?.[key] === undefined) {
-      PAIR_ADDRESS_CACHE = {
-        ...PAIR_ADDRESS_CACHE,
-        [key]: getCreate2Address(
-          FACTORY_ADDRESS_MAP[token0.chainId][swapName],
-          keccak256(['bytes'], [pack(['address', 'address'], [token0.address, token1.address])]),
-          INIT_CODE_HASH_MAP[token0.chainId][swapName]
-        )
-      }
+    if (!PAIR_ADDRESS_CACHE.has(key)) {
+      const poolAddress = getCreate2Address(
+        FACTORY_ADDRESS_MAP[token0.chainId][swapName],
+        keccak256(['bytes'], [pack(['address', 'address'], [token0.address, token1.address])]),
+        INIT_CODE_HASH_MAP[token0.chainId][swapName]
+      )
+      PAIR_ADDRESS_CACHE.set(key, poolAddress)
     }
 
-    return PAIR_ADDRESS_CACHE[key]
+    return PAIR_ADDRESS_CACHE.get(key) as string
   }
 
   public constructor(tokenAmountA: TokenAmount, tokenAmountB: TokenAmount, swapName: SWAP_NAME = SWAP_NAME.pancakeswap) {
